@@ -18,7 +18,12 @@ export function EventDashboard({ event }: EventDashboardProps) {
           <ParticipantsCard eventId={event.id} participants={event.participants} />
         </div>
         <div className="lg:col-span-2 space-y-6">
-          <ExpensesCard eventId={event.id} participants={event.participants} expenses={event.expenses} />
+          <ExpensesCard 
+            eventId={event.id}
+            eventName={event.name}
+            participants={event.participants} 
+            expenses={event.expenses} 
+          />
         </div>
       </div>
       <SummaryCard participants={event.participants} expenses={event.expenses} />

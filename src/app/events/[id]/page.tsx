@@ -14,7 +14,9 @@ export default function EventPage() {
   const router = useRouter();
   const { getEventById, loading } = useEvents();
   const eventId = typeof params.id === 'string' ? params.id : '';
-  const event = getEventById(eventId);
+  
+  // This ensures that we get a consistent event object during re-renders.
+  const event = React.useMemo(() => getEventById(eventId), [getEventById, eventId]);
 
   if (loading) {
     return (

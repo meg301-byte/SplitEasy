@@ -40,16 +40,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Receipt, PlusCircle } from 'lucide-react';
+import { Receipt, PlusCircle, Sparkles, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { suggestExpenses } from '@/ai/flows/suggest-expenses-flow';
+import { Badge } from '@/components/ui/badge';
 
 interface ExpensesCardProps {
   eventId: string;
+  eventName: string;
   participants: Participant[];
   expenses: Expense[];
 }
 
-export function ExpensesCard({ eventId, participants, expenses }: ExpensesCardProps) {
+export function ExpensesCard({ eventId, eventName, participants, expenses }: ExpensesCardProps) {
   const { addExpense } = useEvents();
   const { toast } = useToast();
   const [open, setOpen] = React.useState(false);
@@ -58,6 +61,9 @@ export function ExpensesCard({ eventId, participants, expenses }: ExpensesCardPr
   const [amount, setAmount] = React.useState('');
   const [payerId, setPayerId] = React.useState<string | undefined>();
   const [selectedParticipants, setSelectedParticipants] = React.useState<string[]>([]);
+  
+  const [aiSuggestions, setAiSuggestions] = React.useState<string[]>([]);
+  const [isSuggesting, setIsSuggesting] = React.useState(false);
   
   React.useEffect(() => {
     if(participants.length > 0) {
@@ -70,6 +76,11 @@ export function ExpensesCard({ eventId, participants, expenses }: ExpensesCardPr
     setAmount('');
     setPayerId(undefined);
     setSelectedParticipants(participants.map(p => p.id));
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setDescription(suggestion);
+    setOpen(true);
   };
   
   const handleAddExpense = (e: React.FormEvent) => {
@@ -91,15 +102,70 @@ export function ExpensesCard({ eventId, participants, expenses }: ExpensesCardPr
     }
   };
 
+  const handleAiSuggest = async () => {
+    setIsSuggesting(true);
+    try {
+      const result = await suggestExpenses({
+        eventName,
+        participants: participants.map(p => p.name),
+      });
+      setAiSuggestions(result.suggestions);
+    } catch (error) {
+      console.error('AI suggestion failed:', error);
+      toast({
+        variant: 'destructive',
+        title: 'AI Suggestion Failed',
+        description: 'Could not generate expense suggestions at this time.',
+      });
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
   const getParticipantName = (id: string) => participants.find(p => p.id === id)?.name || 'N/A';
   
   return (
     <Card className="shadow-md">
-      <CardHeader>
-        <CardTitle className="font-headline flex items-center gap-2"><Receipt /> Expenses</CardTitle>
-        <CardDescription>Record and view all shared expenses.</CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="font-headline flex items-center gap-2"><Receipt /> Expenses</CardTitle>
+          <CardDescription>Record and view all shared expenses.</CardDescription>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleAiSuggest}
+          disabled={isSuggesting || participants.length === 0}
+        >
+          {isSuggesting ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Sparkles className="mr-2 h-4 w-4" />
+          )}
+          AI Suggest
+        </Button>
       </CardHeader>
       <CardContent>
+        {aiSuggestions.length > 0 && (
+          <div className="mb-4">
+            <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              AI Suggestions
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {aiSuggestions.map((suggestion, index) => (
+                <Badge
+                  key={index}
+                  variant="outline"
+                  className="cursor-pointer hover:bg-accent"
+                  onClick={() => handleSuggestionClick(suggestion)}
+                >
+                  {suggestion}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
         {expenses.length > 0 ? (
           <Table>
             <TableHeader>
@@ -126,7 +192,7 @@ export function ExpensesCard({ eventId, participants, expenses }: ExpensesCardPr
         ) : (
           <div className="text-center py-8 text-muted-foreground">
             <p>No expenses recorded yet.</p>
-            <p className="text-sm">Add an expense to get started!</p>
+            <p className="text-sm">Add an expense or use AI Suggest to get started!</p>
           </div>
         )}
       </CardContent>
